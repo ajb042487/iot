@@ -16,7 +16,19 @@ namespace Iot.Device.SocketCan.Samples
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello SocketCan Sample!");
+            byte[] payload = new byte[16]
+            {
+                0x1A, 0, 0, 0, // id
+                8, // len
+                0, // flags
+                0, 0, // reserved
+                1, 2, 3, 4, 5, 6, 7, 8
+            };
+            using (CanRawStream stream = new CanRawStream())
+            {
+                //stream.Write(payload);
+                stream.ReadTest();
+            }
         }
     }
 }
