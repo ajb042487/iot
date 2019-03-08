@@ -16,14 +16,32 @@ namespace Iot.Device.SocketCan
     {
         private const int PF_CAN = 29;
 
+        // SFF = Standard Frame Format - 11 bit
+        public const uint CAN_SFF_MASK = 0x000007FF;
+
+        // EFF = Extended Frame Format - 29 bit
+        public const uint CAN_EFF_MASK = 0x1FFFFFFF;
+        public const uint CAN_ERR_MASK = 0x1FFFFFFF;
+
+        // EFF / SFF
+        public const uint CAN_EFF_FLAG = 0x80000000;
+
+        // Remote Transmission Request
+        public const uint CAN_RTR_FLAG = 0x40000000;
+        public const uint CAN_ERR_FLAG = 0x20000000;
+
+        public const int SOL_CAN_BASE = 100;
+        public const int SOL_CAN_RAW = SOL_CAN_BASE + (int)CanProtocol.CAN_RAW;
+
+
         [DllImport("libc", EntryPoint = "socket", CallingConvention = CallingConvention.Cdecl)]
-        private static extern int CreateNativeSocket(int domain, int type, int protocol);
+        private static extern int CreateNativeSocket(int domain, int type, CanProtocol protocol);
 
         [DllImport("libc", EntryPoint = "ioctl", CallingConvention = CallingConvention.Cdecl)]
         private static extern int Ioctl3(int fd, uint request, ref ifreq ifr);
 
         [DllImport("libc", EntryPoint = "bind", CallingConvention = CallingConvention.Cdecl)]
-        private static extern int BindSocket(int fd, ref sockaddr_can addr, uint addrlen);
+        private static extern int BindSocket(int fd, ref CanSocketAddress addr, uint addrlen);
 
         [DllImport("libc", EntryPoint = "close", CallingConvention = CallingConvention.Cdecl)]
         private static extern int CloseSocket(int fd);
@@ -73,8 +91,7 @@ namespace Iot.Device.SocketCan
         public static IntPtr CreateCanRawSocket(string networkInterface)
         {
             const int SOCK_RAW = 3;
-            const int CAN_RAW = 1;
-            int socket = CreateNativeSocket(PF_CAN, SOCK_RAW, CAN_RAW);
+            int socket = CreateNativeSocket(PF_CAN, SOCK_RAW, CanProtocol.CAN_RAW);
 
             if (socket == -1)
                 throw new IOException("CAN socket could not be created");
@@ -87,11 +104,11 @@ namespace Iot.Device.SocketCan
         private static unsafe void BindToInterface(int fd, string interfaceName)
         {
             int idx = GetInterfaceIndex(fd, interfaceName);
-            sockaddr_can addr = new sockaddr_can();
+            CanSocketAddress addr = new CanSocketAddress();
             addr.can_family = PF_CAN;
             addr.can_ifindex = idx;
 
-            if (-1 == BindSocket(fd, ref addr, (uint)Marshal.SizeOf<sockaddr_can>()))
+            if (-1 == BindSocket(fd, ref addr, (uint)Marshal.SizeOf<CanSocketAddress>()))
             {
                 throw new IOException($"Cannot bind to socket to `{interfaceName}`");
             }
@@ -134,12 +151,86 @@ namespace Iot.Device.SocketCan
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        internal struct sockaddr_can
+        internal struct CanSocketAddress
         {
             public short can_family;
             public int can_ifindex;
             public uint rx_id;
             public uint tx_id;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct CanFilter
+        {
+            public uint can_id;
+            public uint can_mask;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct CanFrame
+        {
+            private const int CAN_MAX_DLEN = 8;
+            // can_id includes EFF, RTR and ERR flags
+            public uint can_id;
+            // data length code
+            // see: ISO 11898-1 Chapter 8.4.2.4
+            public byte can_dlc;
+            private byte _pad;
+            private byte _res0;
+            private byte _res1;
+            public fixed byte data[CAN_MAX_DLEN];
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        internal struct CanFdFrame
+        {
+            private const int CANFD_MAX_DLEN = 64;
+            // can_id includes EFF, RTR and ERR flags
+            public uint can_id;
+            public byte len;
+            private CanFdFlags flags;
+            private byte _res0;
+            private byte _res1;
+            public fixed byte data[CANFD_MAX_DLEN];
+        }
+
+        enum CanProtocol : int
+        {
+            CAN_RAW = 1,
+            // Broadcast Manager
+            CAN_BCM = 2,
+            // VAG Transport Protocol v1.6
+            CAN_TP16 = 3,
+            // VAG Transport Protocol v2.0
+            CAN_TP20 = 4,
+            // Bosch MCNet
+            CAN_MCNET = 5,
+            // ISO 15765-2 Transport Protocol
+            CAN_ISOTP = 6,
+            CAN_NPROTO = 7,
+        }
+
+        enum CanSocketOptions : int
+        {
+            // set 0 .. n can_filter(s)
+            CAN_RAW_FILTER = 1,       
+            // set filter for error frames
+            CAN_RAW_ERR_FILTER,
+            // local loopback (default:on)
+            CAN_RAW_LOOPBACK,
+            // receive my own msgs (default:off)
+            CAN_RAW_RECV_OWN_MSGS,
+            // allow CAN FD frames (default:off)
+            CAN_RAW_FD_FRAMES,
+            // all filters must match to trigger
+            CAN_RAW_JOIN_FILTERS,
+        }
+
+        [Flags]
+        enum CanFdFlags : byte
+        {
+            CANFD_BRS = 0x01,
+            CANFD_ESI = 0x02,
         }
     }
 }
