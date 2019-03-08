@@ -27,7 +27,8 @@ namespace Iot.Device.SocketCan
 
         public void ReadTest()
         {
-            Span<byte> b = stackalloc byte[72];
+            const int MTU = 72;
+            Span<byte> b = stackalloc byte[MTU];
             while (true)
             {
                 int read = Interop.Read(_handle, b);
