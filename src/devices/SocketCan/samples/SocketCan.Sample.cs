@@ -26,8 +26,8 @@ namespace Iot.Device.SocketCan.Samples
             };
             using (CanRawStream stream = new CanRawStream())
             {
-                //stream.Write(payload);
-                stream.ReadTest();
+                stream.Write(payload);
+                //stream.ReadTest();
             }
         }
     }

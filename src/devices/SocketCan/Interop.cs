@@ -23,13 +23,6 @@ namespace Iot.Device.SocketCan
         public const uint CAN_EFF_MASK = 0x1FFFFFFF;
         public const uint CAN_ERR_MASK = 0x1FFFFFFF;
 
-        // EFF / SFF
-        public const uint CAN_EFF_FLAG = 0x80000000;
-
-        // Remote Transmission Request
-        public const uint CAN_RTR_FLAG = 0x40000000;
-        public const uint CAN_ERR_FLAG = 0x20000000;
-
         public const int SOL_CAN_BASE = 100;
         public const int SOL_CAN_RAW = SOL_CAN_BASE + (int)CanProtocol.CAN_RAW;
 
@@ -167,7 +160,7 @@ namespace Iot.Device.SocketCan
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        internal struct CanFrame
+        internal unsafe struct CanFrame
         {
             private const int CAN_MAX_DLEN = 8;
             // can_id includes EFF, RTR and ERR flags
@@ -182,7 +175,7 @@ namespace Iot.Device.SocketCan
         }
 
         [StructLayout(LayoutKind.Sequential)]
-        internal struct CanFdFrame
+        internal unsafe struct CanFdFrame
         {
             private const int CANFD_MAX_DLEN = 64;
             // can_id includes EFF, RTR and ERR flags

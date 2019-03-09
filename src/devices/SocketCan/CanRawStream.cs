@@ -8,7 +8,7 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Reflection;
 using System.Runtime.InteropServices;
-using System.Runtime.Serialization;
+using System.Threading;
 
 namespace Iot.Device.SocketCan
 {
@@ -23,6 +23,20 @@ namespace Iot.Device.SocketCan
         public void Write(byte[] payload)
         {
             Interop.Write(_handle, payload);
+        }
+
+        public void Listen(ICanRawListener listener, CancellationToken cancellationToken)
+        {
+            byte[] buffer = listener.GetBuffer(72);
+            if (buffer == null || buffer.Length < 72)
+            {
+                throw new ArgumentException($"GetBuffer did not provide buffer or the buffer was insufficiently small.");
+            }
+
+            while (!cancellationToken.IsCancellationRequested)
+            {
+
+            }
         }
 
         public void ReadTest()
