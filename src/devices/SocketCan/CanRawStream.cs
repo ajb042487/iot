@@ -27,15 +27,29 @@ namespace Iot.Device.SocketCan
 
         public void Listen(ICanRawListener listener, CancellationToken cancellationToken)
         {
-            byte[] buffer = listener.GetBuffer(72);
-            if (buffer == null || buffer.Length < 72)
+            const int Size = 72;
+            byte[] buffer = listener.GetBuffer(Size);
+            if (buffer == null || buffer.Length < Size)
             {
                 throw new ArgumentException($"GetBuffer did not provide buffer or the buffer was insufficiently small.");
             }
 
             while (!cancellationToken.IsCancellationRequested)
             {
+                var frame = new Interop.CanFrame();
+                ReadCanFrame(ref frame);
+            }
+        }
 
+        private void ReadCanFrame(ref Interop.CanFrame frame)
+        {
+            Span<Interop.CanFrame> frameSpan = MemoryMarshal.CreateSpan(ref frame, 1);
+            Span<byte> buff = MemoryMarshal.AsBytes(frameSpan);
+
+            while (buff.Length > 0)
+            {
+                int read = Interop.Read(_handle, buff);
+                buff = buff.Slice(read);
             }
         }
 
