@@ -20,6 +20,7 @@ namespace Iot.Device.SocketCan
             _handle = new SafeCanRawSocketHandle(networkInterface);
         }
 
+        // TODO: Remove me
         public void Write(byte[] payload)
         {
             Interop.Write(_handle, payload);
@@ -68,6 +69,7 @@ namespace Iot.Device.SocketCan
             }
         }
 
+        // TODO: Remove me
         public void ReadTest()
         {
             const int MTU = 72;
@@ -77,6 +79,28 @@ namespace Iot.Device.SocketCan
                 int read = Interop.Read(_handle, b);
                 Console.WriteLine(string.Join("", b.Slice(0, read).ToArray().Select((x) => x.ToString("X2"))));
             }
+        }
+
+        public void Filter(uint address)
+        {
+            Span<Interop.CanFilter> filters = stackalloc Interop.CanFilter[1];
+            if (IsEff(address))
+            {
+                filters[0].can_id = (address & Interop.CAN_EFF_MASK) | (uint)CanFlags.ExtendedFrameFormat;
+                filters[0].can_mask = Interop.CAN_EFF_MASK | (uint)CanFlags.ExtendedFrameFormat | (uint)CanFlags.RemoteTransmissionRequest;
+            }
+            else
+            {
+                filters[0].can_id = address & Interop.CAN_SFF_MASK;
+                filters[0].can_mask = Interop.CAN_SFF_MASK | (uint)CanFlags.ExtendedFrameFormat | (uint)CanFlags.RemoteTransmissionRequest;
+            }
+
+            Interop.SetCanRawSocketOption<Interop.CanFilter>(_handle, Interop.CanSocketOption.CAN_RAW_FILTER, filters);
+        }
+
+        private bool IsEff(uint address)
+        {
+            return (address & Interop.CAN_EFF_MASK) != (address & Interop.CAN_SFF_MASK);
         }
 
         public void Dispose()

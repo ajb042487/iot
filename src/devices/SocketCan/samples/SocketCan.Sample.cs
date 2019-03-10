@@ -24,6 +24,7 @@ namespace Iot.Device.SocketCan.Samples
             {
                 //stream.Write(payload);
                 //stream.ReadTest();
+                stream.Filter(0x1A);
                 stream.Listen(new Listener());
             }
         }

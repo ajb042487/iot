@@ -45,6 +45,9 @@ namespace Iot.Device.SocketCan
         [DllImport("libc", EntryPoint = "read", CallingConvention = CallingConvention.Cdecl, SetLastError = true)]
         private static unsafe extern int SocketRead(int fd, byte* buffer, int size);
 
+        [DllImport("libc", EntryPoint = "setsockopt", CallingConvention = CallingConvention.Cdecl)]
+        private static unsafe extern int SetSocketOpt(int fd, int level, int optName, byte* optVal, int optlen);
+
         public static unsafe void Write(SafeHandle handle, ReadOnlySpan<byte> buffer)
         {
             fixed (byte* b = buffer)
@@ -92,6 +95,23 @@ namespace Iot.Device.SocketCan
             BindToInterface(socket, networkInterface);
 
             return new IntPtr(socket);
+        }
+
+        public static bool SetCanRawSocketOption<T>(SafeHandle handle, CanSocketOption optName, ReadOnlySpan<T> data)
+            where T : struct
+        {
+            return SetSocketOption(handle, SOL_CAN_RAW, optName, data);
+        }
+
+        private static unsafe bool SetSocketOption<T>(SafeHandle handle, int level, CanSocketOption optName, ReadOnlySpan<T> data)
+            where T : struct
+        {
+            int fd = (int)handle.DangerousGetHandle();
+            ReadOnlySpan<byte> buf = MemoryMarshal.AsBytes(data);
+            fixed (byte* pinned = buf)
+            {
+                return SetSocketOpt(fd, level, (int)optName, pinned, buf.Length) == 0;
+            }
         }
 
         private static unsafe void BindToInterface(int fd, string interfaceName)
@@ -187,7 +207,7 @@ namespace Iot.Device.SocketCan
             public fixed byte data[CANFD_MAX_DLEN];
         }
 
-        enum CanProtocol : int
+        internal enum CanProtocol : int
         {
             CAN_RAW = 1,
             // Broadcast Manager
@@ -203,7 +223,7 @@ namespace Iot.Device.SocketCan
             CAN_NPROTO = 7,
         }
 
-        enum CanSocketOptions : int
+        internal enum CanSocketOption : int
         {
             // set 0 .. n can_filter(s)
             CAN_RAW_FILTER = 1,       
@@ -220,7 +240,7 @@ namespace Iot.Device.SocketCan
         }
 
         [Flags]
-        enum CanFdFlags : byte
+        internal enum CanFdFlags : byte
         {
             CANFD_BRS = 0x01,
             CANFD_ESI = 0x02,
