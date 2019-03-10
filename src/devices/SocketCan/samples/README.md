@@ -46,7 +46,7 @@ sudo ifconfig can0 up
 
 These steps are not required but might be useful for diagnosing potential issues.
 
-- Instal can-utils package
+- Install can-utils package
 
 ```sh
 sudo apt-get -y install can-utils

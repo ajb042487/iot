@@ -25,19 +25,34 @@ namespace Iot.Device.SocketCan
             Interop.Write(_handle, payload);
         }
 
-        public void Listen(ICanRawListener listener, CancellationToken cancellationToken)
+        public unsafe void Listen(ICanRawListener listener, CancellationToken cancellationToken = default)
         {
             const int Size = 72;
             byte[] buffer = listener.GetBuffer(Size);
+
             if (buffer == null || buffer.Length < Size)
             {
                 throw new ArgumentException($"GetBuffer did not provide buffer or the buffer was insufficiently small.");
             }
 
-            while (!cancellationToken.IsCancellationRequested)
+            fixed (byte* pinned = buffer)
             {
-                var frame = new Interop.CanFrame();
-                ReadCanFrame(ref frame);
+                Span<byte> buff = new Span<byte>(pinned, buffer.Length);
+                Span<Interop.CanFrame> frameSpan = new Span<Interop.CanFrame>(pinned, 1);
+                ref Interop.CanFrame frame = ref MemoryMarshal.GetReference(frameSpan);
+                int dataOffset = (int)Marshal.OffsetOf(typeof(Interop.CanFrame), "data");
+
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    ReadCanFrame(ref frame);
+                    if (frame.can_dlc < 0 || frame.can_dlc > 16)
+                    {
+                        // we have a bad actor on the network
+                        continue;
+                    }
+                    
+                    listener.FrameReceived(frame.can_id, default, buff.Slice(dataOffset, frame.can_dlc));
+                }
             }
         }
 

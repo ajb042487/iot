@@ -3,11 +3,7 @@
 // See the LICENSE file in the project root for more information.
 
 using System;
-using System.Device.Gpio;
-using System.Device.I2c;
-using System.Device.I2c.Drivers;
-using System.Device.Spi;
-using System.Device.Spi.Drivers;
+using System.Linq;
 using System.Threading;
 
 namespace Iot.Device.SocketCan.Samples
@@ -27,8 +23,20 @@ namespace Iot.Device.SocketCan.Samples
             using (CanRawStream stream = new CanRawStream())
             {
                 //stream.Write(payload);
-                stream.ReadTest();
+                //stream.ReadTest();
+                stream.Listen(new Listener());
             }
+        }
+    }
+
+    class Listener : ICanRawListener
+    {
+        private byte[] _buffer = new byte[72];
+
+        public byte[] GetBuffer(int minLength) => _buffer;
+        public void FrameReceived(uint address, CanFlags flags, ReadOnlySpan<byte> data)
+        {
+            Console.WriteLine($"Address: {address.ToString("X2")}; Flags: {flags}; {string.Join("", data.ToArray().Select((x) => x.ToString("X2")))}");
         }
     }
 }

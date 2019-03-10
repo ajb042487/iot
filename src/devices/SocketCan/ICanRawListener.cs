@@ -16,7 +16,7 @@ namespace Iot.Device.SocketCan
     {
         // buffer should be at least `length` bytes long
         // length will be no more than 72 bytes
-        byte[] GetBuffer(int length);
+        byte[] GetBuffer(int minLength);
         void FrameReceived(uint address, CanFlags flags, ReadOnlySpan<byte> data);
     }
 }
