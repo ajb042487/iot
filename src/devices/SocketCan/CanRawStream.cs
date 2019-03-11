@@ -51,7 +51,15 @@ namespace Iot.Device.SocketCan
                         // we have a bad actor on the network
                         continue;
                     }
+
+                    CanFlags flags = (CanFlags)(frame.can_id & (uint)(CanFlags.Error | CanFlags.ExtendedFrameFormat | CanFlags.RemoteTransmissionRequest));
                     
+                    if (flags.HasFlag(CanFlags.Error) || (!flags.HasFlag(CanFlags.ExtendedFrameFormat) && IsEff(frame.can_id & Interop.CAN_EFF_MASK)))
+                    {
+                        // error flag or EFF address without EFF flag
+                        continue;
+                    }
+
                     listener.FrameReceived(frame.can_id, default, buff.Slice(dataOffset, frame.can_dlc));
                 }
             }
@@ -98,9 +106,18 @@ namespace Iot.Device.SocketCan
             Interop.SetCanRawSocketOption<Interop.CanFilter>(_handle, Interop.CanSocketOption.CAN_RAW_FILTER, filters);
         }
 
-        private bool IsEff(uint address)
+        private bool _usingCanFd = false;
+        public bool TrySwitchToCanFd()
         {
-            return (address & Interop.CAN_EFF_MASK) != (address & Interop.CAN_SFF_MASK);
+            if (_usingCanFd)
+                throw new InvalidOperationException();
+        }
+
+        private static bool IsEff(uint address)
+        {
+            // has explicit flag or address does not fit in SFF addressing mode
+            return (address & (uint)CanFlags.ExtendedFrameFormat) != 0
+                || (address & Interop.CAN_EFF_MASK) != (address & Interop.CAN_SFF_MASK);
         }
 
         public void Dispose()
